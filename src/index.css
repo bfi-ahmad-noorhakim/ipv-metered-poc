@@ -1,0 +1,233 @@
+:root {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: #e2e8f0;
+  background: #0b0f17;
+  -webkit-text-size-adjust: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+  background: #0b0f17;
+}
+
+/* ---- status bar ---- */
+
+.statusbar {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  padding: 8px 12px;
+  padding-top: calc(8px + env(safe-area-inset-top));
+  background: #0b0f17;
+  border-bottom: 1px solid #1e293b;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.mode-pill {
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #e2e8f0;
+}
+
+.dot-on {
+  color: #22c55e;
+}
+
+.dot-off {
+  color: #64748b;
+}
+
+.statusbar .error {
+  color: #f87171;
+  flex-basis: 100%;
+  font-size: 11px;
+}
+
+/* ---- stage (camera area, fills remaining) ---- */
+
+.stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: #000;
+}
+
+.tile {
+  position: absolute;
+  overflow: hidden;
+}
+
+.tile.full {
+  inset: 0;
+  z-index: 1;
+}
+
+.tile.pip {
+  top: 8px;
+  right: 8px;
+  width: 28%;
+  aspect-ratio: 3 / 4;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: #0b0f17;
+  z-index: 10;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.tile.hidden {
+  display: none;
+}
+
+.tile video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+}
+
+.tile-label {
+  position: absolute;
+  bottom: 6px;
+  left: 8px;
+  font-size: 11px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.idle-hint {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+/* ---- IPV overlay on top of the video call ---- */
+
+.ipv-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: #000;
+}
+
+.ipv-overlay .bravo-image-validation_root {
+  height: 100%;
+  width: 100%;
+}
+
+/* ---- log overlay ---- */
+
+.log {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  padding: 12px;
+  background: rgba(2, 6, 23, 0.94);
+  color: #e2e8f0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.log h2 {
+  font-size: 14px;
+  margin: 0 0 8px;
+  color: #94a3b8;
+}
+
+.log ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.log li {
+  padding: 2px 0;
+  word-break: break-word;
+}
+
+.log .time {
+  color: #64748b;
+  margin-right: 8px;
+}
+
+.log .source {
+  margin-right: 8px;
+}
+
+/* ---- toolbar ---- */
+
+.toolbar {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 12px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  background: #0b0f17;
+  border-top: 1px solid #1e293b;
+}
+
+.tb-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 60px;
+  min-height: 54px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 14px;
+  background: transparent;
+  color: #cbd5e1;
+  font-size: 11px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.tb-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.tb-btn.is-active {
+  background: #1d4ed8;
+  color: #fff;
+}
+
+.tb-btn.is-danger {
+  color: #f87171;
+}
+
+.tb-label {
+  line-height: 1;
+}
