@@ -4,9 +4,10 @@ import type { LogSource } from '../types/log';
 
 type Props = {
   log: (source: LogSource, message: string) => void;
+  onCameraError?: (error: unknown) => void;
 };
 
-function IpvPanel({ log }: Props) {
+function IpvPanel({ log, onCameraError }: Props) {
   useEffect(() => {
     log('ipv', 'IPV panel mounted');
     return () => log('ipv', 'IPV panel unmounted (stream released)');
@@ -18,7 +19,10 @@ function IpvPanel({ log }: Props) {
         className="ipv-sdk"
         state="manual"
         facingMode="environment"
-        onUserMediaError={(e) => log('ipv', `onUserMediaError: ${String(e)}`)}
+        onUserMediaError={(e) => {
+          log('ipv', `onUserMediaError: ${String(e)}`);
+          onCameraError?.(e);
+        }}
         onExceptionHandlerError={(e) => log('ipv', `onExceptionHandlerError: ${String(e)}`)}
         onEvent={(event) => log('ipv', `event: ${event}`)}
         onCapture={(res) => log('ipv', `captured image (${res.data.image.length} chars)`)}

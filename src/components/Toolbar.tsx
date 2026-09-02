@@ -126,6 +126,7 @@ type ToolbarProps = {
   inIpv: boolean;
   audioOn: boolean;
   showLog: boolean;
+  cameraToggleDisabled?: boolean;
   onJoin: () => void;
   onToggleMic: () => void;
   onToggleCamera: () => void;
@@ -137,6 +138,7 @@ function Toolbar({
   inIpv,
   audioOn,
   showLog,
+  cameraToggleDisabled,
   onJoin,
   onToggleMic,
   onToggleCamera,
@@ -157,7 +159,7 @@ function Toolbar({
         icon={<SwapIcon />}
         label={inIpv ? 'Video' : 'IPV'}
         onClick={onToggleCamera}
-        disabled={!joined}
+        disabled={!joined || cameraToggleDisabled}
         active={inIpv}
       />
       <IconButton

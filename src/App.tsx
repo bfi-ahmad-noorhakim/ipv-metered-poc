@@ -1,5 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useMetered } from './hooks/useMetered';
+import { useCameraCapabilities } from './hooks/useCameraCapabilities';
+import type { CameraCapability } from './hooks/useCameraCapabilities';
 import type { LogEntry, LogSource } from './types/log';
 import IpvPanel from './components/IpvPanel';
 import MeteredPanel from './components/MeteredPanel';
@@ -17,6 +19,8 @@ const NAME = (import.meta.env.VITE_METERED_NAME as string | undefined) ?? 'POC U
 function App() {
   const [mode, setMode] = useState<Mode>('idle');
   const [fullWho, setFullWho] = useState<FullWho>('remote');
+  const [capability, setCapability] = useState<CameraCapability>('single');
+  const [ipvKey, setIpvKey] = useState(0);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [showLog, setShowLog] = useState(false);
   const idRef = useRef(0);
@@ -33,6 +37,7 @@ function App() {
 
   const { videoRef, joined, videoOn, audioOn, error, remote, join, stopVideo, startVideo, toggleMic } =
     useMetered(log);
+  const { detect } = useCameraCapabilities();
 
   const handleJoin = useCallback(async () => {
     if (!ROOM_URL) {
@@ -41,8 +46,13 @@ function App() {
     }
     const normalized = ROOM_URL.replace(/^https?:\/\//, '').replace(/\/$/, '');
     const ok = await join(normalized, NAME);
-    if (ok) setMode('metered');
-  }, [join, log]);
+    if (ok) {
+      setMode('metered');
+      const cap = await detect();
+      setCapability(cap);
+      log('app', `camera capability detected: ${cap}`);
+    }
+  }, [join, detect, log]);
 
   const toggleToIpv = useCallback(async () => {
     log('app', 'switch -> IPV: stopVideo() to release camera, then mounting IPV');
@@ -57,10 +67,36 @@ function App() {
     await startVideo();
   }, [startVideo, log]);
 
+  const isSplit = capability === 'split';
+
   const toggleCameraMode = useCallback(async () => {
-    if (mode === 'ipv') await toggleToMetered();
-    else await toggleToIpv();
-  }, [mode, toggleToIpv, toggleToMetered]);
+    if (capability === 'none') return;
+    if (mode === 'ipv') {
+      if (isSplit) {
+        log('app', 'switch -> Metered (split): unmount IPV, front camera still live');
+        setMode('metered');
+      } else {
+        await toggleToMetered();
+      }
+    } else {
+      if (isSplit) {
+        log('app', 'switch -> IPV (split): keep Metered on front, IPV uses back');
+        setMode('ipv');
+      } else {
+        await toggleToIpv();
+      }
+    }
+  }, [capability, isSplit, mode, toggleToIpv, toggleToMetered]);
+
+  const handleIpvError = useCallback(async () => {
+    if (capability !== 'split') return;
+    log('app', 'IPV camera error in split mode, falling back to stop/start');
+    setCapability('single');
+    if (mode === 'ipv') {
+      await stopVideo();
+      setIpvKey((k) => k + 1);
+    }
+  }, [capability, mode, stopVideo, log]);
 
   const hasRemote = remote !== null;
 
@@ -91,6 +127,7 @@ function App() {
         <span className="mode-pill">{modeLabel}</span>
         <span className={videoOn ? 'dot-on' : 'dot-off'}>cam {videoOn ? '●' : '○'}</span>
         <span className={audioOn ? 'dot-on' : 'dot-off'}>mic {audioOn ? '●' : '○'}</span>
+        <span className="cap">detect: {capability}</span>
         {error && <span className="error">{error}</span>}
       </div>
 
@@ -98,7 +135,7 @@ function App() {
         <MeteredPanel videoRef={videoRef} variant={localVariant} onSwap={swapToLocal} />
         {remote && <RemoteVideo remote={remote} variant={remoteVariant} onSwap={swapToRemote} />}
         {mode === 'idle' && <div className="idle-hint">Tap Join to start the video call</div>}
-        {mode === 'ipv' && <IpvPanel log={log} />}
+        {mode === 'ipv' && <IpvPanel key={ipvKey} log={log} onCameraError={handleIpvError} />}
         {showLog && <StatusLog logs={logs} />}
       </div>
 
@@ -107,6 +144,7 @@ function App() {
         inIpv={mode === 'ipv'}
         audioOn={audioOn}
         showLog={showLog}
+        cameraToggleDisabled={capability === 'none'}
         onJoin={handleJoin}
         onToggleMic={toggleMic}
         onToggleCamera={toggleCameraMode}
