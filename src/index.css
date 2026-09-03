@@ -141,6 +141,26 @@ body,
   width: 100%;
 }
 
+.ipv-switch-btn {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 20;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  background: rgba(11, 15, 23, 0.7);
+  color: #e2e8f0;
+  font-size: 12px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.ipv-switch-btn:active {
+  background: #1d4ed8;
+  color: #fff;
+}
+
 /* ---- log overlay ---- */
 
 .log {
