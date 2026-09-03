@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMetered } from './hooks/useMetered';
 import type { LogEntry, LogSource } from './types/log';
 import IpvPanel from './components/IpvPanel';
@@ -6,6 +6,7 @@ import MeteredPanel from './components/MeteredPanel';
 import RemoteVideo from './components/RemoteVideo';
 import StatusLog from './components/StatusLog';
 import Toolbar from './components/Toolbar';
+import UploadedImage from './components/UploadedImage';
 
 type Mode = 'idle' | 'metered' | 'ipv';
 type FullWho = 'local' | 'remote';
@@ -19,7 +20,16 @@ function App() {
   const [fullWho, setFullWho] = useState<FullWho>('remote');
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [showLog, setShowLog] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const imageUrlRef = useRef<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const idRef = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      if (imageUrlRef.current) URL.revokeObjectURL(imageUrlRef.current);
+    };
+  }, []);
 
   const log = useCallback((source: LogSource, message: string) => {
     const entry: LogEntry = {
@@ -56,6 +66,37 @@ function App() {
     await new Promise((resolve) => setTimeout(resolve, 200));
     await startVideo();
   }, [startVideo, log]);
+
+  const handleUploadClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) {
+        log('app', 'file picker cancelled');
+        return;
+      }
+      if (!file.type.startsWith('image/')) {
+        log('app', `rejected non-image file: ${file.type || file.name}`);
+        return;
+      }
+      if (imageUrlRef.current) URL.revokeObjectURL(imageUrlRef.current);
+      const url = URL.createObjectURL(file);
+      imageUrlRef.current = url;
+      setImageUrl(url);
+      log('app', `document selected: ${file.name} (${file.type}, ${file.size} bytes)`);
+    },
+    [log]
+  );
+
+  const handleRemoveImage = useCallback(() => {
+    if (imageUrlRef.current) URL.revokeObjectURL(imageUrlRef.current);
+    imageUrlRef.current = null;
+    setImageUrl(null);
+    log('app', 'document removed');
+  }, [log]);
 
   const toggleCameraMode = useCallback(async () => {
     if (mode === 'ipv') await toggleToMetered();
@@ -99,6 +140,7 @@ function App() {
         {remote && <RemoteVideo remote={remote} variant={remoteVariant} onSwap={swapToRemote} />}
         {mode === 'idle' && <div className="idle-hint">Tap Join to start the video call</div>}
         {mode === 'ipv' && <IpvPanel log={log} />}
+        {imageUrl && <UploadedImage src={imageUrl} onRemove={handleRemoveImage} />}
         {showLog && <StatusLog logs={logs} />}
       </div>
 
@@ -111,6 +153,14 @@ function App() {
         onToggleMic={toggleMic}
         onToggleCamera={toggleCameraMode}
         onToggleLog={() => setShowLog((v) => !v)}
+        onUpload={handleUploadClick}
+      />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        style={{ display: 'none' }}
       />
     </div>
   );
