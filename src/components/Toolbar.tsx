@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Button, Typography } from '@bfi-finance/frontend-ui/components';
 
 function PhoneIcon() {
   return (
@@ -96,28 +97,31 @@ function LogIcon() {
   );
 }
 
-type IconButtonProps = {
+type ButtonVariant = 'primary' | 'secondary' | 'destructive' | 'outline' | 'text';
+
+type ToolItemProps = {
   icon: ReactNode;
   label: string;
   onClick: () => void;
   disabled?: boolean;
-  active?: boolean;
-  danger?: boolean;
+  variant?: ButtonVariant;
 };
 
-function IconButton({ icon, label, onClick, disabled, active, danger }: IconButtonProps) {
+function ToolItem({ icon, label, onClick, disabled, variant = 'primary' }: ToolItemProps) {
   return (
-    <button
-      type="button"
-      className={`tb-btn ${active ? 'is-active' : ''} ${danger ? 'is-danger' : ''}`}
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-      title={label}
-    >
-      {icon}
-      <span className="tb-label">{label}</span>
-    </button>
+    <div className="tb-item">
+      <Button
+        isIconOnly
+        icon={icon}
+        size="large"
+        variant={variant}
+        onClick={onClick}
+        disabled={disabled}
+      />
+      <Typography component="span" size="xss" style="semi_bold">
+        {label}
+      </Typography>
+    </div>
   );
 }
 
@@ -144,27 +148,26 @@ function Toolbar({
 }: ToolbarProps) {
   return (
     <div className="toolbar">
-      <IconButton icon={<PhoneIcon />} label="Join" onClick={onJoin} disabled={joined} />
-      <IconButton
+      <ToolItem icon={<PhoneIcon />} label="Join" onClick={onJoin} disabled={joined} />
+      <ToolItem
         icon={audioOn ? <MicIcon /> : <MicOffIcon />}
         label={audioOn ? 'Mute' : 'Unmute'}
         onClick={onToggleMic}
         disabled={!joined}
-        active={audioOn}
-        danger={!audioOn}
+        variant={audioOn ? 'secondary' : 'destructive'}
       />
-      <IconButton
+      <ToolItem
         icon={<SwapIcon />}
         label={inIpv ? 'Video' : 'IPV'}
         onClick={onToggleCamera}
         disabled={!joined}
-        active={inIpv}
+        variant={inIpv ? 'primary' : 'outline'}
       />
-      <IconButton
+      <ToolItem
         icon={<LogIcon />}
         label="Log"
         onClick={onToggleLog}
-        active={showLog}
+        variant={showLog ? 'primary' : 'outline'}
       />
     </div>
   );

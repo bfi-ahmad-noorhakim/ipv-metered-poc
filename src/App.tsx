@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import { Chips, EmptyState, Loader, Snackbar, Typography } from '@bfi-finance/frontend-ui/components';
 import { useMetered } from './hooks/useMetered';
 import type { LogEntry, LogSource } from './types/log';
 import IpvPanel from './components/IpvPanel';
@@ -19,6 +20,7 @@ function App() {
   const [fullWho, setFullWho] = useState<FullWho>('remote');
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [showLog, setShowLog] = useState(false);
+  const [joining, setJoining] = useState(false);
   const idRef = useRef(0);
 
   const log = useCallback((source: LogSource, message: string) => {
@@ -39,9 +41,14 @@ function App() {
       log('app', 'No VITE_METERED_ROOM_URL set. Copy .env.example -> .env and fill it in.');
       return;
     }
-    const normalized = ROOM_URL.replace(/^https?:\/\//, '').replace(/\/$/, '');
-    const ok = await join(normalized, NAME);
-    if (ok) setMode('metered');
+    setJoining(true);
+    try {
+      const normalized = ROOM_URL.replace(/^https?:\/\//, '').replace(/\/$/, '');
+      const ok = await join(normalized, NAME);
+      if (ok) setMode('metered');
+    } finally {
+      setJoining(false);
+    }
   }, [join, log]);
 
   const toggleToIpv = useCallback(async () => {
@@ -84,22 +91,50 @@ function App() {
     mode === 'metered' && remoteVariant === 'pip' ? () => setFullWho('remote') : undefined;
 
   const modeLabel = mode === 'ipv' ? 'IPV' : mode === 'metered' ? 'VIDEO' : 'IDLE';
+  const modeChipVariant = mode === 'ipv' ? 'success' : mode === 'metered' ? 'selected' : 'unselected';
 
   return (
     <div className="app">
-      <div className="statusbar">
-        <span className="mode-pill">{modeLabel}</span>
-        <span className={videoOn ? 'dot-on' : 'dot-off'}>cam {videoOn ? '●' : '○'}</span>
-        <span className={audioOn ? 'dot-on' : 'dot-off'}>mic {audioOn ? '●' : '○'}</span>
-        {error && <span className="error">{error}</span>}
-      </div>
+      <header className="statusbar">
+        <Chips label={modeLabel} variant={modeChipVariant} />
+        <div className="status-indicators">
+          <Typography
+            component="span"
+            size="xs"
+            style="semi_bold"
+            color={videoOn ? 'success' : 'neutral70'}
+          >
+            cam {videoOn ? '●' : '○'}
+          </Typography>
+          <Typography
+            component="span"
+            size="xs"
+            style="semi_bold"
+            color={audioOn ? 'success' : 'neutral70'}
+          >
+            mic {audioOn ? '●' : '○'}
+          </Typography>
+        </div>
+      </header>
 
-      <div className="stage">
+      {error && (
+        <div className="error-snackbar">
+          <Snackbar variant="danger" message={error} isFullWidth />
+        </div>
+      )}
+
+      <div className={`stage ${mode === 'idle' ? 'is-idle' : ''}`}>
         <MeteredPanel videoRef={videoRef} variant={localVariant} onSwap={swapToLocal} />
         {remote && <RemoteVideo remote={remote} variant={remoteVariant} onSwap={swapToRemote} />}
-        {mode === 'idle' && <div className="idle-hint">Tap Join to start the video call</div>}
+        {mode === 'idle' && (
+          <div className="idle-hint">
+            <EmptyState
+              title="Start the video call"
+              description="Tap Join below to connect to the Metered room and switch between the Metered camera and the BFI IPV SDK."
+            />
+          </div>
+        )}
         {mode === 'ipv' && <IpvPanel log={log} />}
-        {showLog && <StatusLog logs={logs} />}
       </div>
 
       <Toolbar
@@ -112,6 +147,10 @@ function App() {
         onToggleCamera={toggleCameraMode}
         onToggleLog={() => setShowLog((v) => !v)}
       />
+
+      <StatusLog open={showLog} logs={logs} onClose={() => setShowLog(false)} />
+
+      {joining && <Loader isFullScreen />}
     </div>
   );
 }
