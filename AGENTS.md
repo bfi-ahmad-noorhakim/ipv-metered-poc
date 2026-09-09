@@ -39,7 +39,13 @@ Camera (`getUserMedia`) requires a secure context: localhost on desktop, or the 
 
 ## Architecture
 
-- `src/App.tsx` — single state machine `mode: 'idle' | 'metered' | 'ipv'`; owns all camera-switch orchestration and logging.
+- `src/App.tsx` — single state machine `persona: 'user' | 'admin' | null` then `mode: 'idle' | 'metered' | 'ipv'`; owns all camera-switch orchestration and logging.
+- **Persona gating**: app starts at a persona chooser (`src/components/PersonaSelect.tsx`). `user` gets video call + IPV; `admin` gets video call only (no IPV toggle — `showIpv={persona === 'user'}` on `Toolbar`, and `toggleCameraMode` no-ops unless persona is `user`). Persona is in-memory only (resets on reload) and fixed until reload — there is no switch control.
 - `src/hooks/useMetered.ts` — all Metered meeting lifecycle (join/start/stop/toggle, remote track handling, `leave` with timeout).
 - `src/components/IpvPanel.tsx` — mounts/unmounts the `<ImageValidationSDK>`; unmount is what releases the IPV camera.
-- `src/types/metered.d.ts` + `src/types/log.ts` — global `Window.Metered` typing and the `LogEntry`/`LogSource` shapes.
+- `src/types/metered.d.ts`, `src/types/log.ts`, `src/types/persona.ts` — global `Window.Metered` typing, the `LogEntry`/`LogSource` shapes, and the `Persona` union.
+
+## UI
+
+- Built on `@bfi-finance/frontend-ui` (BFI design system, MUI v5). Import components from `@bfi-finance/frontend-ui/components` and tokens from `@bfi-finance/frontend-ui/foundations` (`Color`, `Spacing`). It ships no font — Inter is loaded via Google Fonts in `index.html`.
+- The camera `stage` stays dark; the surrounding chrome is the light design-system theme.

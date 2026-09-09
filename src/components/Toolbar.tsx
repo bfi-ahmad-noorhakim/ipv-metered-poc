@@ -128,6 +128,7 @@ function ToolItem({ icon, label, onClick, disabled, variant = 'primary' }: ToolI
 type ToolbarProps = {
   joined: boolean;
   inIpv: boolean;
+  showIpv: boolean;
   audioOn: boolean;
   showLog: boolean;
   onJoin: () => void;
@@ -139,6 +140,7 @@ type ToolbarProps = {
 function Toolbar({
   joined,
   inIpv,
+  showIpv,
   audioOn,
   showLog,
   onJoin,
@@ -156,13 +158,15 @@ function Toolbar({
         disabled={!joined}
         variant={audioOn ? 'secondary' : 'destructive'}
       />
-      <ToolItem
-        icon={<SwapIcon />}
-        label={inIpv ? 'Video' : 'IPV'}
-        onClick={onToggleCamera}
-        disabled={!joined}
-        variant={inIpv ? 'primary' : 'outline'}
-      />
+      {showIpv && (
+        <ToolItem
+          icon={<SwapIcon />}
+          label={inIpv ? 'Video' : 'IPV'}
+          onClick={onToggleCamera}
+          disabled={!joined}
+          variant={inIpv ? 'primary' : 'outline'}
+        />
+      )}
       <ToolItem
         icon={<LogIcon />}
         label="Log"

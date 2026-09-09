@@ -159,6 +159,35 @@ body,
   white-space: nowrap;
 }
 
+/* ---- persona chooser ---- */
+
+.persona {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 32px;
+  background: #f6f7fa;
+}
+
+.persona-options {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 20px;
+  width: 100%;
+  max-width: 320px;
+}
+
+.persona-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
 /* ---- toolbar ---- */
 
 .toolbar {

@@ -2,8 +2,10 @@ import { useCallback, useRef, useState } from 'react';
 import { Chips, EmptyState, Loader, Snackbar, Typography } from '@bfi-finance/frontend-ui/components';
 import { useMetered } from './hooks/useMetered';
 import type { LogEntry, LogSource } from './types/log';
+import type { Persona } from './types/persona';
 import IpvPanel from './components/IpvPanel';
 import MeteredPanel from './components/MeteredPanel';
+import PersonaSelect from './components/PersonaSelect';
 import RemoteVideo from './components/RemoteVideo';
 import StatusLog from './components/StatusLog';
 import Toolbar from './components/Toolbar';
@@ -16,6 +18,7 @@ const ROOM_URL = (import.meta.env.VITE_METERED_ROOM_URL as string | undefined) ?
 const NAME = (import.meta.env.VITE_METERED_NAME as string | undefined) ?? 'POC User';
 
 function App() {
+  const [persona, setPersona] = useState<Persona | null>(null);
   const [mode, setMode] = useState<Mode>('idle');
   const [fullWho, setFullWho] = useState<FullWho>('remote');
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -65,9 +68,10 @@ function App() {
   }, [startVideo, log]);
 
   const toggleCameraMode = useCallback(async () => {
+    if (persona !== 'user') return;
     if (mode === 'ipv') await toggleToMetered();
     else await toggleToIpv();
-  }, [mode, toggleToIpv, toggleToMetered]);
+  }, [persona, mode, toggleToIpv, toggleToMetered]);
 
   const hasRemote = remote !== null;
 
@@ -92,6 +96,10 @@ function App() {
 
   const modeLabel = mode === 'ipv' ? 'IPV' : mode === 'metered' ? 'VIDEO' : 'IDLE';
   const modeChipVariant = mode === 'ipv' ? 'success' : mode === 'metered' ? 'selected' : 'unselected';
+
+  if (persona === null) {
+    return <PersonaSelect onSelect={setPersona} />;
+  }
 
   return (
     <div className="app">
@@ -140,6 +148,7 @@ function App() {
       <Toolbar
         joined={joined}
         inIpv={mode === 'ipv'}
+        showIpv={persona === 'user'}
         audioOn={audioOn}
         showLog={showLog}
         onJoin={handleJoin}
