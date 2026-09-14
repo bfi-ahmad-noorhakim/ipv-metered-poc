@@ -27,9 +27,11 @@ Camera (`getUserMedia`) requires a secure context: localhost on desktop, or the 
 
 ## Dependencies & SDK quirks
 
-- **IPV SDK** (`@bfi-finance/bravo-image-validation-web-sdk`) is private, installed from the GitHub Package Registry. It needs a per-user PAT + registry auth — `npm install` fails without it. There is no `.npmrc` committed; setup is manual (see README).
-- **Metered SDK is NOT an npm dep.** It is loaded at runtime from a CDN script tag (`https://cdn.metered.ca/sdk/video/1.4.6/sdk.min.js`) in `src/hooks/useMetered.ts`. Its types are hand-written in `src/types/metered.d.ts` and the local `MeteredMeeting` type in `useMetered.ts`; keep them in sync with the CDN version.
+- **Both `@bfi-finance/*` packages are private** (`bravo-image-validation-web-sdk` + `frontend-ui`), installed from the GitHub Package Registry (`npm.pkg.github.com`). `npm install` fails without a per-user PAT + registry auth. There is no `.npmrc` committed; setup is manual (see README).
+- **Metered SDK is NOT an npm dep.** It is loaded at runtime from a CDN script tag (`https://cdn.metered.ca/sdk/video/1.5.0/sdk.min.js`) in `src/hooks/useMetered.ts`. Its types are hand-written in `src/types/metered.d.ts` and the local `MeteredMeeting` type in `useMetered.ts`; keep them in sync with the CDN version.
+- **Pin the SDK to `1.5.0` or newer.** The in-meeting chat/file methods (`getChatAccessToken`, `sendChatFileMessage`, `chatMessageReceived`, `chatMessageError`) do **not** exist in `1.4.6` — only text `sendChatMessage` does. Metered's own docs/llms.txt still reference `1.4.6`, so don't trust them for the version; `1.5.0` is the version that ships file chat.
 - **IPV blocks virtual cameras** (OBS, emulator webcams). Test the IPV side with a real camera.
+- **UI is not hand-rolled MUI.** App components come from `@bfi-finance/frontend-ui/components` (`Chips`, `EmptyState`, `Loader`, `Snackbar`, `Typography`); only a thin MUI `ThemeProvider` + `CssBaseline` wraps the app in `src/main.tsx`. Don't reach for raw MUI components to build UI without checking `frontend-ui` first.
 
 ## Non-obvious behavior to preserve
 
@@ -39,7 +41,15 @@ Camera (`getUserMedia`) requires a secure context: localhost on desktop, or the 
 
 ## Architecture
 
-- `src/App.tsx` — single state machine `mode: 'idle' | 'metered' | 'ipv'`; owns all camera-switch orchestration and logging.
-- `src/hooks/useMetered.ts` — all Metered meeting lifecycle (join/start/stop/toggle, remote track handling, `leave` with timeout).
+- `src/App.tsx` — single state machine `mode: 'idle' | 'metered' | 'ipv'`; owns camera-switch orchestration, the metered grid layout, and file-send wiring.
+- `src/hooks/useMetered.ts` — all Metered meeting lifecycle (join/start/stop/toggle, remote track handling, `leave` with timeout) plus the chat file upload/send/receive flow (`sendFile`, `files` state).
 - `src/components/IpvPanel.tsx` — mounts/unmounts the `<ImageValidationSDK>`; unmount is what releases the IPV camera.
-- `src/types/metered.d.ts` + `src/types/log.ts` — global `Window.Metered` typing and the `LogEntry`/`LogSource` shapes.
+- `src/components/FileOverlay.tsx` — bottom-right overlay of sent/received image files (`ChatFile[]`).
+- `src/types/metered.d.ts` + `src/types/log.ts` — global `Window.Metered` typing, the `ChatMessage`/`ChatUploadResponse` shapes, and `LogEntry`/`LogSource`.
+
+## File sharing (Metered in-meeting chat)
+
+- Requires the room to have **`enableChat: true`** (dashboard or Update Room API). Chat/file methods no-op until it's on.
+- Flow in `useMetered.ts`: `getChatAccessToken()` → `POST https://<host>/api/v1/chat/upload` (Bearer token, `FormData` `file`) → `sendChatFileMessage(fileS3Key, fileName, fileMimeType, fileSizeBytes)`. Host is derived from the joined `roomURL`.
+- Inbound files arrive on the `chatMessageReceived` event (`type: 'file' | 'image'`); download URL is `https://<host>/api/v1/chat/file/<_id>?dl=<downloadToken>`. Errors arrive on `chatMessageError` (logged, not thrown).
+- Limits: 10 MB/file, image/allowlisted MIME only, 10 uploads/min. Local previews use `URL.createObjectURL` and are revoked in `clearFiles()`.

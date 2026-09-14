@@ -6,10 +6,9 @@ type Variant = 'full' | 'pip' | 'hidden';
 type Props = {
   remote: RemoteParticipant;
   variant: Variant;
-  onSwap?: () => void;
 };
 
-function RemoteVideo({ remote, variant, onSwap }: Props) {
+function RemoteVideo({ remote, variant }: Props) {
   const videoEl = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -20,7 +19,7 @@ function RemoteVideo({ remote, variant, onSwap }: Props) {
   }, [remote.stream]);
 
   return (
-    <div className={`tile remote ${variant}`} onClick={onSwap}>
+    <div className={`tile remote ${variant}`}>
       <video ref={videoEl} autoPlay playsInline />
       <span className="tile-label">{remote.name}</span>
     </div>

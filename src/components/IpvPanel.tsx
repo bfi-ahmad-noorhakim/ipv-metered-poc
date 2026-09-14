@@ -4,9 +4,10 @@ import type { LogSource } from '../types/log';
 
 type Props = {
   log: (source: LogSource, message: string) => void;
+  onCaptureImage: (imageDataUrl: string) => void;
 };
 
-function IpvPanel({ log }: Props) {
+function IpvPanel({ log, onCaptureImage }: Props) {
   useEffect(() => {
     log('ipv', 'IPV panel mounted');
     return () => log('ipv', 'IPV panel unmounted (stream released)');
@@ -21,7 +22,10 @@ function IpvPanel({ log }: Props) {
         onUserMediaError={(e) => log('ipv', `onUserMediaError: ${String(e)}`)}
         onExceptionHandlerError={(e) => log('ipv', `onExceptionHandlerError: ${String(e)}`)}
         onEvent={(event) => log('ipv', `event: ${event}`)}
-        onCapture={(res) => log('ipv', `captured image (${res.data.image.length} chars)`)}
+        onCapture={(res) => {
+          log('ipv', `captured image (${res.data.image.length} chars)`);
+          onCaptureImage(res.data.image);
+        }}
         debug={false}
       />
     </div>

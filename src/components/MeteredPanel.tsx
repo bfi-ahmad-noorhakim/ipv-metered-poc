@@ -5,12 +5,11 @@ type Variant = 'full' | 'pip' | 'hidden';
 type Props = {
   videoRef: RefObject<HTMLVideoElement>;
   variant: Variant;
-  onSwap?: () => void;
 };
 
-function MeteredPanel({ videoRef, variant, onSwap }: Props) {
+function MeteredPanel({ videoRef, variant }: Props) {
   return (
-    <div className={`tile local ${variant}`} onClick={onSwap}>
+    <div className={`tile local ${variant}`}>
       <video ref={videoRef} autoPlay muted playsInline />
       <span className="tile-label">You</span>
     </div>

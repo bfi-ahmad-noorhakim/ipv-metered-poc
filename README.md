@@ -86,8 +86,9 @@ Key options accepted by `POST /api/v1/room` (and the dashboard):
 | `ownerOnlyBroadcast` | boolean | Only admins can share camera/mic/screen |
 | `audioOnlyRoom` | boolean | Mic only (audio-only pricing) |
 | `endMeetingAfterNoActivityInSec` | integer | End the meeting after N seconds of no media |
+| `enableChat` | boolean | Enables in-meeting chat + file sharing (required for the "Send" button) |
 
-For the POC, a **public room** is sufficient and requires no backend.
+For the POC, a **public room** with **`enableChat: true`** is sufficient and requires no backend.
 
 ## Run
 
@@ -117,3 +118,9 @@ npm run dev:mobile   # real device: HTTPS with self-signed cert + LAN IP
   [mediasoup-client#353](https://github.com/versatica/mediasoup-client/issues/353),
   [Chromium issue](https://issues.chromium.org/issues/467164231).
 - **IPV blocks virtual cameras** (emulator webcams, OBS, etc.) — use a real camera for the IPV side.
+- **File sharing** uses Metered's in-meeting chat: the room must have `enableChat: true`. Images are
+  uploaded to `POST /api/v1/chat/upload` (Bearer `meeting.getChatAccessToken()`) then announced via
+  `meeting.sendChatFileMessage(...)`. Recipients download via `/api/v1/chat/file/<id>?dl=<token>`.
+  Limits: **10 MB/file**, image (or allowlisted) MIME types only, 10 uploads/min. Errors surface on the
+  `chatMessageError` event. See
+  [In-Meeting Chat](https://www.metered.ca/docs/Video-Calls/JavaScript/in-meeting-chat).

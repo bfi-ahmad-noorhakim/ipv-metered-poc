@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import type { ReactNode } from 'react';
 import { Button, Typography } from '@bfi-finance/frontend-ui/components';
 
@@ -97,6 +98,25 @@ function LogIcon() {
   );
 }
 
+function FileIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="22"
+      height="22"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+      <circle cx="8.5" cy="8.5" r="1.5" />
+      <polyline points="21 15 16 10 5 21" />
+    </svg>
+  );
+}
+
 type ButtonVariant = 'primary' | 'secondary' | 'destructive' | 'outline' | 'text';
 
 type ToolItemProps = {
@@ -134,6 +154,7 @@ type ToolbarProps = {
   onToggleMic: () => void;
   onToggleCamera: () => void;
   onToggleLog: () => void;
+  onSendFiles: (files: File[]) => void;
 };
 
 function Toolbar({
@@ -144,8 +165,11 @@ function Toolbar({
   onJoin,
   onToggleMic,
   onToggleCamera,
-  onToggleLog
+  onToggleLog,
+  onSendFiles
 }: ToolbarProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   return (
     <div className="toolbar">
       <ToolItem icon={<PhoneIcon />} label="Join" onClick={onJoin} disabled={joined} />
@@ -164,10 +188,29 @@ function Toolbar({
         variant={inIpv ? 'primary' : 'outline'}
       />
       <ToolItem
+        icon={<FileIcon />}
+        label="Send"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={!joined}
+        variant="outline"
+      />
+      <ToolItem
         icon={<LogIcon />}
         label="Log"
         onClick={onToggleLog}
         variant={showLog ? 'primary' : 'outline'}
+      />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="file-input"
+        onChange={(e) => {
+          const selected = Array.from(e.target.files ?? []);
+          if (selected.length > 0) onSendFiles(selected);
+          e.target.value = '';
+        }}
       />
     </div>
   );

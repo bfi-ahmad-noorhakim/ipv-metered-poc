@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import type { LogSource } from '../types/log';
+import type { ChatMessage, ChatUploadResponse } from '../types/metered';
 
 type MeteredMeeting = {
   join(options: { roomURL: string; name: string; accessToken?: string }): Promise<unknown>;
@@ -8,6 +9,13 @@ type MeteredMeeting = {
   startAudio(): Promise<void>;
   stopAudio(): Promise<void>;
   leaveMeeting(): Promise<void>;
+  getChatAccessToken(): string;
+  sendChatFileMessage(
+    fileS3Key: string,
+    fileName: string,
+    fileMimeType: string,
+    fileSizeBytes: number
+  ): void;
   on(event: string, handler: (item: unknown) => void): void;
 };
 
@@ -16,7 +24,15 @@ type ParticipantInfo = { name?: string };
 
 export type RemoteParticipant = { name: string; stream: MediaStream };
 
-const METERED_SDK_URL = 'https://cdn.metered.ca/sdk/video/1.4.6/sdk.min.js';
+export type ChatFile = {
+  id: string;
+  url: string;
+  fileName: string;
+  senderName: string;
+  local: boolean;
+};
+
+const METERED_SDK_URL = 'https://cdn.metered.ca/sdk/video/1.5.0/sdk.min.js';
 
 let sdkPromise: Promise<void> | null = null;
 
@@ -42,11 +58,14 @@ function loadSdk(): Promise<void> {
 export function useMetered(log: (source: LogSource, message: string) => void) {
   const meetingRef = useRef<MeteredMeeting | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const hostRef = useRef<string | null>(null);
+  const nameRef = useRef<string>('');
   const [joined, setJoined] = useState(false);
   const [videoOn, setVideoOn] = useState(false);
   const [audioOn, setAudioOn] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [remote, setRemote] = useState<RemoteParticipant | null>(null);
+  const [files, setFiles] = useState<ChatFile[]>([]);
 
   const join = useCallback(
     async (roomURL: string, name: string): Promise<boolean> => {
@@ -107,8 +126,42 @@ export function useMetered(log: (source: LogSource, message: string) => void) {
           setRemote(null);
         });
 
+        meeting.on('chatMessageReceived', (item) => {
+          const msg = item as ChatMessage;
+          log('metered', `chatMessageReceived (${msg.type}) — ${msg.fileName ?? msg.content ?? ''}`);
+          if (msg.type !== 'file' && msg.type !== 'image') return;
+          if (!msg._id || !msg.downloadToken) return;
+          const host = hostRef.current;
+          if (!host) return;
+          setFiles((prev) => {
+            const existing = prev.find(
+              (f) => f.fileName === msg.fileName && f.senderName === (msg.senderName ?? '')
+            );
+            if (existing) return prev;
+            return [
+              ...prev,
+              {
+                id: msg._id as string,
+                url: `https://${host}/api/v1/chat/file/${msg._id}?dl=${msg.downloadToken}`,
+                fileName: msg.fileName ?? 'file',
+                senderName: msg.senderName ?? 'Peer',
+                local: false
+              }
+            ];
+          });
+        });
+
+        meeting.on('chatMessageError', (item) => {
+          const err = item as { context?: string; message?: string };
+          log('metered', `chatMessageError (${err.context ?? ''}): ${err.message ?? ''}`);
+        });
+
         await meeting.join({ roomURL, name });
         meetingRef.current = meeting;
+        hostRef.current = roomURL.includes('/')
+          ? new URL(`https://${roomURL}`).host
+          : roomURL;
+        nameRef.current = name;
         setJoined(true);
         setError(null);
         log('metered', `joined room ${roomURL} — auto-starting mic + camera`);
@@ -231,6 +284,60 @@ export function useMetered(log: (source: LogSource, message: string) => void) {
     }
   }, [log]);
 
+  const sendFile = useCallback(
+    async (file: File) => {
+      const meeting = meetingRef.current;
+      const host = hostRef.current;
+      if (!meeting || !host) {
+        log('metered', 'sendFile(): no active meeting');
+        return;
+      }
+      try {
+        const token = meeting.getChatAccessToken();
+        const res = await fetch(`https://${host}/api/v1/chat/upload`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: (() => {
+            const form = new FormData();
+            form.append('file', file);
+            return form;
+          })()
+        });
+        if (!res.ok) throw new Error(`upload failed: ${res.status} ${res.statusText}`);
+        const data = (await res.json()) as ChatUploadResponse;
+        meeting.sendChatFileMessage(
+          data.fileS3Key,
+          data.fileName,
+          data.fileMimeType,
+          data.fileSizeBytes
+        );
+        setFiles((prev) => [
+          ...prev,
+          {
+            id: `${data.fileName}-${data.fileSizeBytes}-${Date.now()}`,
+            url: URL.createObjectURL(file),
+            fileName: data.fileName || file.name,
+            senderName: nameRef.current,
+            local: true
+          }
+        ]);
+        log('metered', `sendFile(): sent ${data.fileName} (${data.fileSizeBytes} bytes)`);
+      } catch (e) {
+        log('metered', `sendFile() error: ${String(e)}`);
+      }
+    },
+    [log]
+  );
+
+  const clearFiles = useCallback(() => {
+    setFiles((prev) => {
+      prev.forEach((f) => {
+        if (f.local && f.url.startsWith('blob:')) URL.revokeObjectURL(f.url);
+      });
+      return [];
+    });
+  }, []);
+
   return {
     videoRef,
     joined,
@@ -238,6 +345,7 @@ export function useMetered(log: (source: LogSource, message: string) => void) {
     audioOn,
     error,
     remote,
+    files,
     join,
     startVideo,
     stopVideo,
@@ -245,6 +353,8 @@ export function useMetered(log: (source: LogSource, message: string) => void) {
     stopAudio,
     toggleMic,
     renegTest,
-    leave
+    leave,
+    sendFile,
+    clearFiles
   };
 }

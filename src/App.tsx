@@ -3,13 +3,14 @@ import { Chips, EmptyState, Loader, Snackbar, Typography } from '@bfi-finance/fr
 import { useMetered } from './hooks/useMetered';
 import type { LogEntry, LogSource } from './types/log';
 import IpvPanel from './components/IpvPanel';
+import IpvCaptureDialog from './components/IpvCaptureDialog';
 import MeteredPanel from './components/MeteredPanel';
 import RemoteVideo from './components/RemoteVideo';
+import FileOverlay from './components/FileOverlay';
 import StatusLog from './components/StatusLog';
 import Toolbar from './components/Toolbar';
 
 type Mode = 'idle' | 'metered' | 'ipv';
-type FullWho = 'local' | 'remote';
 type Variant = 'full' | 'pip' | 'hidden';
 
 const ROOM_URL = (import.meta.env.VITE_METERED_ROOM_URL as string | undefined) ?? '';
@@ -17,10 +18,11 @@ const NAME = (import.meta.env.VITE_METERED_NAME as string | undefined) ?? 'POC U
 
 function App() {
   const [mode, setMode] = useState<Mode>('idle');
-  const [fullWho, setFullWho] = useState<FullWho>('remote');
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [showLog, setShowLog] = useState(false);
   const [joining, setJoining] = useState(false);
+  const [ipvCapture, setIpvCapture] = useState<string | null>(null);
+  const [sendingIpv, setSendingIpv] = useState(false);
   const idRef = useRef(0);
 
   const log = useCallback((source: LogSource, message: string) => {
@@ -33,7 +35,7 @@ function App() {
     setLogs((prev) => [...prev.slice(-199), entry]);
   }, []);
 
-  const { videoRef, joined, videoOn, audioOn, error, remote, join, stopVideo, startVideo, toggleMic } =
+  const { videoRef, joined, videoOn, audioOn, error, remote, files, join, stopVideo, startVideo, toggleMic, sendFile, clearFiles } =
     useMetered(log);
 
   const handleJoin = useCallback(async () => {
@@ -69,15 +71,38 @@ function App() {
     else await toggleToIpv();
   }, [mode, toggleToIpv, toggleToMetered]);
 
+  const handleSendFiles = useCallback(
+    (selected: File[]) => {
+      selected.forEach((file) => sendFile(file));
+    },
+    [sendFile]
+  );
+
+  const handleSendIpvCapture = useCallback(async () => {
+    if (!ipvCapture) return;
+    setSendingIpv(true);
+    try {
+      const blob = await (await fetch(ipvCapture)).blob();
+      const ext = blob.type === 'image/png' ? 'png' : 'jpg';
+      const file = new File([blob], `ipv-capture.${ext}`, { type: blob.type });
+      await sendFile(file);
+    } catch (e) {
+      log('app', `IPV capture send error: ${String(e)}`);
+    } finally {
+      setSendingIpv(false);
+      setIpvCapture(null);
+    }
+    toggleToMetered();
+  }, [ipvCapture, sendFile, log, toggleToMetered]);
+
   const hasRemote = remote !== null;
 
   let localVariant: Variant;
   let remoteVariant: Variant;
 
   if (mode === 'metered') {
-    const fullIsRemote = hasRemote && fullWho === 'remote';
-    localVariant = fullIsRemote ? 'pip' : 'full';
-    remoteVariant = fullIsRemote ? 'full' : 'pip';
+    localVariant = 'full';
+    remoteVariant = 'full';
   } else if (mode === 'ipv') {
     localVariant = 'hidden';
     remoteVariant = 'pip';
@@ -85,10 +110,6 @@ function App() {
     localVariant = 'hidden';
     remoteVariant = 'hidden';
   }
-
-  const swapToLocal = mode === 'metered' && localVariant === 'pip' ? () => setFullWho('local') : undefined;
-  const swapToRemote =
-    mode === 'metered' && remoteVariant === 'pip' ? () => setFullWho('remote') : undefined;
 
   const modeLabel = mode === 'ipv' ? 'IPV' : mode === 'metered' ? 'VIDEO' : 'IDLE';
   const modeChipVariant = mode === 'ipv' ? 'success' : mode === 'metered' ? 'selected' : 'unselected';
@@ -123,9 +144,9 @@ function App() {
         </div>
       )}
 
-      <div className={`stage ${mode === 'idle' ? 'is-idle' : ''}`}>
-        <MeteredPanel videoRef={videoRef} variant={localVariant} onSwap={swapToLocal} />
-        {remote && <RemoteVideo remote={remote} variant={remoteVariant} onSwap={swapToRemote} />}
+      <div className={`stage ${mode === 'idle' ? 'is-idle' : ''} ${mode === 'metered' ? 'is-grid' : ''}`}>
+        <MeteredPanel videoRef={videoRef} variant={localVariant} />
+        {remote && <RemoteVideo remote={remote} variant={remoteVariant} />}
         {mode === 'idle' && (
           <div className="idle-hint">
             <EmptyState
@@ -134,7 +155,8 @@ function App() {
             />
           </div>
         )}
-        {mode === 'ipv' && <IpvPanel log={log} />}
+        {mode === 'ipv' && <IpvPanel log={log} onCaptureImage={setIpvCapture} />}
+        {files.length > 0 && <FileOverlay files={files} onClear={clearFiles} />}
       </div>
 
       <Toolbar
@@ -146,9 +168,17 @@ function App() {
         onToggleMic={toggleMic}
         onToggleCamera={toggleCameraMode}
         onToggleLog={() => setShowLog((v) => !v)}
+        onSendFiles={handleSendFiles}
       />
 
       <StatusLog open={showLog} logs={logs} onClose={() => setShowLog(false)} />
+
+      <IpvCaptureDialog
+        image={ipvCapture}
+        sending={sendingIpv}
+        onSend={handleSendIpvCapture}
+        onCancel={() => setIpvCapture(null)}
+      />
 
       {joining && <Loader isFullScreen />}
     </div>
